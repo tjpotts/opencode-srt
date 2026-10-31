@@ -5,9 +5,12 @@ An OpenCode V2 server plugin that runs every OpenCode shell command through
 
 ## Requirements
 
-- Linux
+This plugin has the same runtime prerequisites as its pinned
+[SRT dependency](https://github.com/anthropic-experimental/sandbox-runtime#platform-specific-dependencies); it adds none of its own. On Linux, this includes:
+
 - Node.js 22.12 or later
-- `bubblewrap` on `PATH`
+- `bubblewrap`, `socat`, and `ripgrep` on `PATH`
+- A host configuration that permits the user namespaces required by Bubblewrap
 - An SRT settings file. Commands are blocked when it is missing, unreadable,
   invalid JSON, or invalid SRT configuration.
 
@@ -78,9 +81,11 @@ The wrapper starts the Node runtime helper, which reads and validates the SRT
 policy, anchors relative filesystem entries at the project root, and runs the
 original command inside SRT.
 
+The plugin replaces the shell executable rather than rewriting the command.
+That leaves OpenCode's permission analysis looking at the original command.
 The wrapper keeps the original shell's basename (for example, `bash` or
-`powershell`). OpenCode uses that basename to select the grammar for shell
-permission analysis, so the build includes a wrapper for every supported shell.
+`powershell`) so OpenCode selects the correct shell grammar; the build therefore
+includes a wrapper for every supported shell.
 
 Example policy:
 
