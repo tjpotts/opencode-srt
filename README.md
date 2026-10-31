@@ -32,8 +32,10 @@ Use a project-local plugin during development by placing this package under
 
 ## Configuration
 
-By default the plugin reads `~/.srt-settings.json`. It fails closed if that
-file does not exist.
+By default the plugin reads `srt-settings.json` in OpenCode's global
+configuration directory when it exists: `$XDG_CONFIG_HOME/opencode/` when
+`XDG_CONFIG_HOME` is set, otherwise `~/.config/opencode/`. It then falls back
+to `~/.srt-settings.json`. It fails closed if neither file exists.
 
 Set `settingsPath` to select another file:
 

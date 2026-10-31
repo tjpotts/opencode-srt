@@ -1,7 +1,7 @@
 import { Plugin } from "@opencode/plugin"
 import { basename, delimiter, isAbsolute, join, resolve } from "node:path"
 import { homedir } from "node:os"
-import { accessSync, constants } from "node:fs"
+import { accessSync, constants, existsSync } from "node:fs"
 import { FALLBACK_SHELL_NAME, SUPPORTED_SHELL_NAMES } from "./shells.js"
 
 /**
@@ -17,8 +17,17 @@ type PluginOptions = {
   nodePath?: unknown
 }
 
-function resolveSettingsPath(options: PluginOptions, projectRoot: string): string {
-  if (options.settingsPath === undefined) return join(homedir(), ".srt-settings.json")
+export function resolveDefaultSettingsPath(
+  homeDirectory = homedir(),
+  pathExists = existsSync,
+  configHome = process.env.XDG_CONFIG_HOME || join(homeDirectory, ".config"),
+): string {
+  const opencodeSettings = join(configHome, "opencode", "srt-settings.json")
+  return pathExists(opencodeSettings) ? opencodeSettings : join(homeDirectory, ".srt-settings.json")
+}
+
+export function resolveSettingsPath(options: PluginOptions, projectRoot: string): string {
+  if (options.settingsPath === undefined) return resolveDefaultSettingsPath()
   if (typeof options.settingsPath !== "string" || options.settingsPath.length === 0)
     throw new Error("opencode-srt: settingsPath must be a non-empty string")
   const expanded = options.settingsPath === "~" ? homedir() : options.settingsPath.replace(/^~\//, `${homedir()}/`)
