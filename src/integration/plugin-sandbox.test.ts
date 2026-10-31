@@ -57,12 +57,29 @@ async function withProject(
     await mkdir(join(root, ".opencode"), { recursive: true })
     await writeFile(settingsPath, JSON.stringify(policy))
     await plugin.setup({
-      location: { project: { directory: root } },
+      location: { directory: root, project: { directory: root } },
       options: { settingsPath, nodePath: process.execPath },
+      permission: {
+        async hook() {
+          return { async dispose() {} }
+        },
+      },
       shell: {
         async hook(name: string, callback: ShellHook) {
           assert.equal(name, "create.before")
           hook = callback
+          return { async dispose() {} }
+        },
+      },
+      tool: {
+        async transform(callback: (editor: { get(id: string): unknown; add(tool: unknown): void }) => void) {
+          callback({
+            get(id) {
+              if (id !== "shell") return undefined
+              return { input: { type: "object" }, async execute() { return { content: "" } } }
+            },
+            add() {},
+          })
           return { async dispose() {} }
         },
       },

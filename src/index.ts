@@ -1,4 +1,5 @@
 import { Plugin } from "@opencode/plugin"
+import { AsyncLocalStorage } from "node:async_hooks"
 import { basename, delimiter, isAbsolute, join, resolve } from "node:path"
 import { homedir } from "node:os"
 import { accessSync, constants, existsSync } from "node:fs"
@@ -11,6 +12,23 @@ import { FALLBACK_SHELL_NAME, SUPPORTED_SHELL_NAMES } from "./shells.js"
  */
 const PAYLOAD_ENV = "OPENCODE_SRT_PAYLOAD"
 const NODE_ENV = "OPENCODE_SRT_NODE"
+const BYPASS_PERMISSION = "srt.bypass"
+
+type UnsafeShellInvocation = {
+  command: string
+  cwd: string
+  available: boolean
+}
+
+type ShellInput = {
+  command: string
+  workdir?: string
+}
+
+// The native shell executor and the shell hook run in the same async call
+// chain. This makes approval local to one tool invocation, rather than a
+// process-wide switch that another session or concurrent command could use.
+const unsafeShellInvocation = new AsyncLocalStorage<UnsafeShellInvocation>()
 
 type PluginOptions = {
   settingsPath?: unknown
@@ -73,7 +91,19 @@ export default Plugin.define({
     const selectedSettings = resolveSettingsPath(ctx.options as PluginOptions, projectRoot)
     const selectedNode = resolveNodePath(ctx.options as PluginOptions, projectRoot)
 
+    await ctx.permission.hook("evaluate", (event) => {
+      if (event.action !== BYPASS_PERMISSION) return
+      event.effect = "ask"
+      event.message = "This command will run outside the SRT sandbox."
+    })
+
     await ctx.shell.hook("create.before", (event) => {
+      const bypass = unsafeShellInvocation.getStore()
+      if (bypass?.available && bypass.command === event.command && bypass.cwd === event.cwd) {
+        bypass.available = false
+        return
+      }
+
       const originalShell = event.shell
       event.env[PAYLOAD_ENV] = Buffer.from(
         JSON.stringify({
@@ -86,6 +116,40 @@ export default Plugin.define({
       ).toString("base64url")
       event.env[NODE_ENV] = selectedNode
       event.shell = wrapperPathFor(originalShell)
+    })
+
+    await ctx.tool.transform((editor) => {
+      const shell = editor.get("shell")
+      if (!shell) throw new Error("opencode-srt: OpenCode's native shell tool is unavailable")
+
+      editor.add({
+        name: "unsafe_shell",
+        description:
+          "Run a shell command outside the SRT sandbox. Use only when the sandbox prevents a necessary action. Every call requires explicit user approval and still follows OpenCode's normal shell permission checks.",
+        input: shell.input,
+        ...(shell.output === undefined ? {} : { output: shell.output }),
+        options: { codemode: false, permission: BYPASS_PERMISSION },
+        execute: async (input, context) => {
+          const shellInput = input as ShellInput
+          const cwd = shellInput.workdir ?? ctx.location.directory
+          await ctx.permission.assert({
+            sessionID: context.sessionID,
+            agent: context.agent,
+            source: { type: "tool", messageID: context.messageID, id: context.id },
+            action: BYPASS_PERMISSION,
+            resources: [shellInput.command],
+            // Bypassing the sandbox is always a fresh decision, even when the
+            // user selects the client's "always" approval option.
+            save: [],
+            metadata: { command: shellInput.command, cwd, sandbox: "bypassed" },
+          })
+
+          return unsafeShellInvocation.run(
+            { command: shellInput.command, cwd, available: true },
+            () => shell.execute(input, context),
+          )
+        },
+      })
     })
   },
 })

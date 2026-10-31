@@ -1,12 +1,12 @@
 # OpenCode SRT Sandbox
 
 An OpenCode V2 server plugin that runs every OpenCode shell command through
-[Anthropic Sandbox Runtime (SRT)](https://github.com/anthropic-experimental/sandbox-runtime).
+[Sandbox Runtime (SRT)](https://github.com/tjpotts/sandbox-runtime).
 
 ## Requirements
 
 This plugin has the same runtime prerequisites as its pinned
-[SRT dependency](https://github.com/anthropic-experimental/sandbox-runtime#platform-specific-dependencies); it adds none of its own. On Linux, this includes:
+[SRT dependency](https://github.com/tjpotts/sandbox-runtime#platform-specific-dependencies); it adds none of its own. On Linux, this includes:
 
 - Node.js 22.12 or later
 - `bubblewrap`, `socat`, and `ripgrep` on `PATH`
@@ -107,6 +107,11 @@ Example policy:
 ## Security and scope
 
 - There is no unsandboxed fallback.
+- Agents can explicitly call the `unsafe_shell` tool when SRT prevents a
+  necessary command. Each call requires a fresh user approval and runs only
+  that command outside SRT. OpenCode's normal shell scanner and shell
+  permission checks still apply; configure a `deny` rule for `srt.bypass` to
+  disable the tool entirely.
 - Each command launches a separate Node helper, preventing SRT's process-wide
   manager state from being shared between projects or worktrees.
 - The original command and shell are retained for OpenCode's shell permission
