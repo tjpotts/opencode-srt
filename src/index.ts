@@ -148,7 +148,7 @@ export default Plugin.define({
       editor.add({
         name: "unsafe_shell",
         description:
-          "Run a shell command outside the SRT sandbox. Use only when the sandbox prevents a necessary action. You MUST provide a specific reason why unsafe_shell is necessary instead of the sandboxed shell tool. Every call requires explicit user approval and still follows OpenCode's normal shell permission checks.",
+          "Run a shell command outside the SRT sandbox when the sandbox prevents a necessary action. You MUST provide a specific reason why unsafe_shell is necessary instead of the sandboxed shell tool. Every usage of this tool will prompt the user for explicit approval. OpenCode's normal shell permission checks still apply.",
         input: UNSAFE_SHELL_INPUT,
         ...(shell.output === undefined ? {} : { output: shell.output }),
         options: { codemode: false, permission: BYPASS_PERMISSION },
