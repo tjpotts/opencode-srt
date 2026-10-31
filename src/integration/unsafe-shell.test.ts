@@ -55,9 +55,9 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
   } as never)
 
   assert.ok(permissionHook)
-  const permission = { action: "srt.bypass", effect: "allow" as const }
+  const permission = { action: "unsafe_shell", effect: "allow" as const }
   permissionHook(permission)
-  assert.deepEqual(permission, { action: "srt.bypass", effect: "ask", message: "This command will run outside the SRT sandbox." })
+  assert.deepEqual(permission, { action: "unsafe_shell", effect: "ask", message: "This command will be run outside the SRT sandbox." })
 
   const context = { sessionID: "session", agent: "build", messageID: "message", id: "call" }
   const unsafe = tools.get("unsafe_shell")!
@@ -66,7 +66,7 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
     sessionID: "session",
     agent: "build",
     source: { type: "tool", messageID: "message", id: "call" },
-    action: "srt.bypass",
+    action: "unsafe_shell",
     resources: ["id"],
     save: [],
     metadata: { command: "id", cwd: "/project", sandbox: "bypassed" },

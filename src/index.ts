@@ -12,7 +12,7 @@ import { FALLBACK_SHELL_NAME, SUPPORTED_SHELL_NAMES } from "./shells.js"
  */
 const PAYLOAD_ENV = "OPENCODE_SRT_PAYLOAD"
 const NODE_ENV = "OPENCODE_SRT_NODE"
-const BYPASS_PERMISSION = "srt.bypass"
+const BYPASS_PERMISSION = "unsafe_shell"
 
 type UnsafeShellInvocation = {
   command: string
@@ -94,7 +94,7 @@ export default Plugin.define({
     await ctx.permission.hook("evaluate", (event) => {
       if (event.action !== BYPASS_PERMISSION) return
       event.effect = "ask"
-      event.message = "This command will run outside the SRT sandbox."
+      event.message = "This command will be run outside the SRT sandbox."
     })
 
     await ctx.shell.hook("create.before", (event) => {

@@ -110,7 +110,7 @@ Example policy:
 - Agents can explicitly call the `unsafe_shell` tool when SRT prevents a
   necessary command. Each call requires a fresh user approval and runs only
   that command outside SRT. OpenCode's normal shell scanner and shell
-  permission checks still apply; configure a `deny` rule for `srt.bypass` to
+  permission checks still apply; configure a `deny` rule for `unsafe_shell` to
   disable the tool entirely.
 - Each command launches a separate Node helper, preventing SRT's process-wide
   manager state from being shared between projects or worktrees.

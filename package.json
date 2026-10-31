@@ -4,7 +4,8 @@
   "description": "OpenCode V2 plugin that runs shell commands inside Anthropic Sandbox Runtime",
   "type": "module",
   "exports": {
-    ".": "./dist/index.js"
+    ".": "./dist/index.js",
+    "./tui": "./dist/tui.js"
   },
   "files": [
     "dist",
@@ -20,11 +21,17 @@
     "@anthropic-ai/sandbox-runtime": "^0.0.81"
   },
   "peerDependencies": {
-    "@opencode/plugin": "*"
+    "@opencode/plugin": "*",
+    "@opentui/core": ">=0.8.0",
+    "@opentui/solid": ">=0.8.0",
+    "solid-js": ">=1.9.0"
   },
   "devDependencies": {
     "@opencode/plugin": "latest",
+    "@opentui/core": "^0.8.0",
+    "@opentui/solid": "^0.8.0",
     "@types/node": "^22.15.0",
+    "solid-js": "^1.9.0",
     "typescript": "^5.8.3"
   },
   "engines": {
