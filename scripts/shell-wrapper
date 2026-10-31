@@ -1,0 +1,4 @@
+#!/bin/sh
+# OpenCode invokes this as <shell> -c <command>. Keep it as a shell-named
+# executable so OpenCode's permission scanner retains the original grammar.
+exec "$OPENCODE_SRT_NODE" "$(dirname "$0")/../helper.js" "$@"
