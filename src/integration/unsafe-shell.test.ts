@@ -61,7 +61,10 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
 
   const context = { sessionID: "session", agent: "build", messageID: "message", id: "call" }
   const unsafe = tools.get("unsafe_shell")!
-  assert.equal(await unsafe.execute({ command: "id" }, context).then((result) => result.content), "/bin/sh")
+  assert.equal(
+    await unsafe.execute({ command: "id", reason: "The sandbox blocks this required command." }, context).then((result) => result.content),
+    "/bin/sh",
+  )
   assert.deepEqual(permissionInput, {
     sessionID: "session",
     agent: "build",
@@ -69,8 +72,15 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
     action: "unsafe_shell",
     resources: ["id"],
     save: [],
-    metadata: { command: "id", cwd: "/project", sandbox: "bypassed" },
+    metadata: {
+      command: "id",
+      cwd: "/project",
+      reason: "The sandbox blocks this required command.",
+      sandbox: "bypassed",
+    },
   })
+
+  await assert.rejects(() => unsafe.execute({ command: "id", reason: "  " }, context), /non-blank reason/)
 
   const ordinary = tools.get("shell")!
   assert.match(await ordinary.execute({ command: "id" }, context).then((result) => result.content), /\/runtime\/bin\/sh$/)

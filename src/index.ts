@@ -23,7 +23,30 @@ type UnsafeShellInvocation = {
 type ShellInput = {
   command: string
   workdir?: string
+  timeout?: number
+  background?: boolean
 }
+
+type UnsafeShellInput = ShellInput & {
+  reason: string
+}
+
+const UNSAFE_SHELL_INPUT = {
+  type: "object",
+  properties: {
+    command: { type: "string", description: "Shell command string to execute" },
+    reason: {
+      type: "string",
+      minLength: 1,
+      description: "Why this command must run outside SRT instead of using the sandboxed shell tool",
+    },
+    workdir: { type: "string", description: "Working directory to execute the command in" },
+    timeout: { type: "integer", minimum: 0, description: "Timeout in milliseconds; 0 disables it" },
+    background: { type: "boolean", description: "Run the command in the background" },
+  },
+  required: ["command", "reason"],
+  additionalProperties: false,
+} as const
 
 // The native shell executor and the shell hook run in the same async call
 // chain. This makes approval local to one tool invocation, rather than a
@@ -125,12 +148,14 @@ export default Plugin.define({
       editor.add({
         name: "unsafe_shell",
         description:
-          "Run a shell command outside the SRT sandbox. Use only when the sandbox prevents a necessary action. Every call requires explicit user approval and still follows OpenCode's normal shell permission checks.",
-        input: shell.input,
+          "Run a shell command outside the SRT sandbox. Use only when the sandbox prevents a necessary action. You MUST provide a specific reason why unsafe_shell is necessary instead of the sandboxed shell tool. Every call requires explicit user approval and still follows OpenCode's normal shell permission checks.",
+        input: UNSAFE_SHELL_INPUT,
         ...(shell.output === undefined ? {} : { output: shell.output }),
         options: { codemode: false, permission: BYPASS_PERMISSION },
         execute: async (input, context) => {
-          const shellInput = input as ShellInput
+          const unsafeInput = input as UnsafeShellInput
+          const { reason, ...shellInput } = unsafeInput
+          if (reason.trim().length === 0) throw new Error("unsafe_shell requires a non-blank reason")
           const cwd = shellInput.workdir ?? ctx.location.directory
           await ctx.permission.assert({
             sessionID: context.sessionID,
@@ -141,12 +166,12 @@ export default Plugin.define({
             // Bypassing the sandbox is always a fresh decision, even when the
             // user selects the client's "always" approval option.
             save: [],
-            metadata: { command: shellInput.command, cwd, sandbox: "bypassed" },
+            metadata: { command: shellInput.command, cwd, reason, sandbox: "bypassed" },
           })
 
           return unsafeShellInvocation.run(
             { command: shellInput.command, cwd, available: true },
-            () => shell.execute(input, context),
+            () => shell.execute(shellInput, context),
           )
         },
       })

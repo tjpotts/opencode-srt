@@ -6,14 +6,16 @@ const BYPASS_PERMISSION = "unsafe_shell"
 type BypassMetadata = {
   command?: unknown
   cwd?: unknown
+  reason?: unknown
 }
 
-function bypassDetails(metadata: unknown): { command?: string; cwd?: string } {
+function bypassDetails(metadata: unknown): { command?: string; cwd?: string; reason?: string } {
   if (!metadata || typeof metadata !== "object" || Array.isArray(metadata)) return {}
   const value = metadata as BypassMetadata
   return {
     ...(typeof value.command === "string" ? { command: value.command } : {}),
     ...(typeof value.cwd === "string" ? { cwd: value.cwd } : {}),
+    ...(typeof value.reason === "string" ? { reason: value.reason } : {}),
   }
 }
 
@@ -36,6 +38,9 @@ export default Plugin.define({
                 <text fg={ctx.theme.text.base}>This command will be run outside the SRT sandbox.</text>
                 <Show when={details().command}>
                   {(command) => <text fg={ctx.theme.text.base}>$ {command()}</text>}
+                </Show>
+                <Show when={details().reason}>
+                  {(reason) => <text fg={ctx.theme.text.base}>Reason: {reason()}</text>}
                 </Show>
                 <Show when={details().cwd}>
                   {(cwd) => <text fg={ctx.theme.text.muted}>Working directory: {cwd()}</text>}
