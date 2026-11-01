@@ -18,7 +18,7 @@
     "test": "node --test dist/**/*.test.js"
   },
   "dependencies": {
-    "@anthropic-ai/sandbox-runtime": "^0.0.81"
+    "@anthropic-ai/sandbox-runtime": "git+https://github.com/tjpotts/sandbox-runtime.git#a4663ea4d2530142aea3cfe427094dabf6df0219"
   },
   "peerDependencies": {
     "@opencode/plugin": "*",
