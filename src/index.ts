@@ -3,6 +3,7 @@ import { AsyncLocalStorage } from "node:async_hooks"
 import { basename, delimiter, isAbsolute, join, resolve } from "node:path"
 import { homedir } from "node:os"
 import { accessSync, constants, existsSync } from "node:fs"
+import agentSandboxContext from "./agent-context.md"
 import { FALLBACK_SHELL_NAME, SUPPORTED_SHELL_NAMES } from "./shells.js"
 
 /**
@@ -13,6 +14,7 @@ import { FALLBACK_SHELL_NAME, SUPPORTED_SHELL_NAMES } from "./shells.js"
 const PAYLOAD_ENV = "OPENCODE_SRT_PAYLOAD"
 const NODE_ENV = "OPENCODE_SRT_NODE"
 const BYPASS_PERMISSION = "unsafe_shell"
+const AGENT_SANDBOX_CONTEXT = agentSandboxContext.trim()
 
 type UnsafeShellInvocation = {
   command: string
@@ -118,6 +120,10 @@ export default Plugin.define({
       if (event.action !== BYPASS_PERMISSION) return
       event.effect = "ask"
       event.message = "This command will be run outside the SRT sandbox."
+    })
+
+    await ctx.session.hook("context", (event) => {
+      event.system.push({ type: "text", text: AGENT_SANDBOX_CONTEXT })
     })
 
     await ctx.shell.hook("create.before", (event) => {

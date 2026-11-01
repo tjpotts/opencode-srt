@@ -15,6 +15,7 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
 
   let shellHook: ((event: ShellEvent) => Promise<void> | void) | undefined
   let permissionHook: ((event: { action: string; effect: "allow" | "ask" | "deny"; message?: string }) => void) | undefined
+  let contextHook: ((event: { system: { type: "text"; text: string }[] }) => void) | undefined
   let permissionInput: unknown
   const tools = new Map<string, { input: object; execute(input: unknown, context: unknown): Promise<{ content: string }> }>()
 
@@ -46,6 +47,12 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
         return { async dispose() {} }
       },
     },
+    session: {
+      async hook(_name: string, callback: typeof contextHook) {
+        contextHook = callback
+        return { async dispose() {} }
+      },
+    },
     tool: {
       async transform(callback: (editor: { get(id: string): (typeof tools extends Map<string, infer T> ? T : never) | undefined; add(tool: { name: string } & (typeof tools extends Map<string, infer T> ? T : never)): void }) => void) {
         callback({ get: (id) => tools.get(id), add: (tool) => tools.set(tool.name, tool) })
@@ -58,6 +65,20 @@ test("unsafe_shell requires bypass approval and delegates only its command outsi
   const permission = { action: "unsafe_shell", effect: "allow" as const }
   permissionHook(permission)
   assert.deepEqual(permission, { action: "unsafe_shell", effect: "ask", message: "This command will be run outside the SRT sandbox." })
+
+  assert.ok(contextHook)
+  const system: { type: "text"; text: string }[] = []
+  contextHook({ system })
+  assert.deepEqual(system, [
+    {
+      type: "text",
+      text:
+        "The `shell` tool runs all commands inside a `sandbox-runtime` sandbox with user-defined limits on filesystem and network access. Use it by default.\n\n" +
+        "If sandbox restrictions block a necessary action, use `unsafe_shell` with a specific justification. Every invocation requires explicit user approval, and OpenCode's normal shell permission checks still apply. Do not attempt to bypass sandbox restrictions through other tools.\n\n" +
+        "On Linux, certain protected dotfiles, such as `.bashrc`, `.gitconfig`, and `.mcp.json`, may appear as empty, read-only files when they do not exist in the project directory. These are sandbox protection artifacts, not evidence that the project contains those files. Do not attempt to remove or overwrite them.\n\n" +
+        "Shell commands additionally run inside the sandbox. Other tools, including OpenCode file tools and MCP tools, use OpenCode's built-in permissions system.",
+    },
+  ])
 
   const context = { sessionID: "session", agent: "build", messageID: "message", id: "call" }
   const unsafe = tools.get("unsafe_shell")!

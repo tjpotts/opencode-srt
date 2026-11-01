@@ -64,6 +64,11 @@ async function withProject(
           return { async dispose() {} }
         },
       },
+      session: {
+        async hook() {
+          return { async dispose() {} }
+        },
+      },
       shell: {
         async hook(name: string, callback: ShellHook) {
           assert.equal(name, "create.before")
