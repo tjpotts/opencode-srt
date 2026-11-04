@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process"
-import { readFile } from "node:fs/promises"
+import { readFile, realpath } from "node:fs/promises"
 import { isAbsolute, resolve } from "node:path"
 import { fileURLToPath } from "node:url"
 import { SandboxManager, SandboxRuntimeConfigSchema, type SandboxRuntimeConfig } from "@anthropic-ai/sandbox-runtime"
@@ -117,9 +117,12 @@ export function quoteForShell(value: string): string {
   return `'${value.replaceAll("'", "'\\''")}'`
 }
 
-function runCommand(command: string, cwd: string): Promise<number> {
+async function runCommand(command: string, cwd: string): Promise<number> {
+  // Bubblewrap may use PWD to restore its cwd after setting up the sandbox.
+  // An inherited logical path can be hidden even when the physical cwd is allowed.
+  const physicalCwd = await realpath(cwd)
   return new Promise((resolveRun, reject) => {
-    const child = spawn(command, { shell: true, cwd, env: process.env, stdio: "inherit" })
+    const child = spawn(command, { shell: true, cwd, env: { ...process.env, PWD: physicalCwd }, stdio: "inherit" })
     child.once("error", reject)
     child.once("exit", (code, signal) => resolveRun(code ?? (signal ? 128 : 1)))
   })

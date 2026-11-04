@@ -1,7 +1,7 @@
 import assert from "node:assert/strict"
 import { spawn } from "node:child_process"
 import { existsSync } from "node:fs"
-import { access, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises"
+import { access, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from "node:fs/promises"
 import { createServer } from "node:net"
 import { delimiter, join } from "node:path"
 import test from "node:test"
@@ -47,7 +47,7 @@ async function canCreateUnixSocket(): Promise<boolean> {
 
 async function withProject(
   policy: object,
-  run: (project: { root: string; settingsPath: string; invoke: (command: string, cwd?: string) => Promise<CommandResult> }) => Promise<void>,
+  run: (project: { root: string; settingsPath: string; invoke: (command: string, cwd?: string, env?: Record<string, string>) => Promise<CommandResult> }) => Promise<void>,
 ): Promise<void> {
   const root = await mkdtemp(join(process.cwd(), ".opencode-srt-integration-"))
   const settingsPath = join(root, ".opencode", "srt-settings.json")
@@ -95,7 +95,7 @@ async function withProject(
     await run({
       root,
       settingsPath,
-      async invoke(command, cwd = root) {
+      async invoke(command, cwd = root, env = {}) {
         const event: ShellCreateEvent = {
           command,
           cwd,
@@ -103,7 +103,7 @@ async function withProject(
           timeout: 30_000,
           // SRT creates proxy sockets under TMPDIR. Use the writable fixture
           // rather than inheriting a host-specific (or read-only) temp path.
-          env: { ...process.env, TMPDIR: root },
+          env: { ...process.env, TMPDIR: root, ...env },
         }
         await activeHook(event)
         assert.match(event.shell, /\/runtime\/bin\/sh$/)
@@ -145,6 +145,32 @@ test("runs OpenCode shell commands inside SRT with project-root filesystem rules
 
       assert.equal(result.code, 0, result.stderr)
       assert.equal(await readFile(join(root, "output", "result.txt"), "utf8"), "sandboxed")
+    },
+  )
+})
+
+test("starts in the physical project directory when inherited PWD is a hidden symlink", { skip: nativeSandboxUnavailable }, async () => {
+  await withProject(
+    {
+      filesystem: { denyRead: ["/"], allowRead: [".", "/bin", "/usr", "/lib", "/lib64", "/nix/store"], allowWrite: ["."], denyWrite: [] },
+      network: { allowedDomains: [], deniedDomains: [] },
+    },
+    async ({ root, invoke }) => {
+      const link = `${root}-link`
+      try {
+        await symlink(root, link)
+        await writeFile(join(root, "fixture.txt"), "fixture contents\n")
+        const result = await invoke(
+          'test ! -e "$LINK_PATH" && pwd -P && IFS= read -r fixture < fixture.txt && printf %s "$fixture"',
+          root,
+          { PWD: link, LINK_PATH: link },
+        )
+
+        assert.equal(result.code, 0, result.stderr)
+        assert.equal(result.stdout, `${root}\nfixture contents`)
+      } finally {
+        await rm(link, { force: true })
+      }
     },
   )
 })
